@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Cognitive Agency × Epistemic Autonomy — 1000 Agents (Injustice + Institution + Network)</title>
+<style>
+  :root { --bg:#0b0c10; --panel:#12141a; --ink:#e9eef2; --muted:#9aa6b2; }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid #1b1f2a}
+  h1{font-size:18px;margin:0 0 4px}
+  .wrap{display:grid;grid-template-columns:420px 1fr;gap:14px;padding:14px}
+  .card{background:#12141a;border:1px solid #1b1f2a;border-radius:14px;padding:14px}
+  .row{display:flex;gap:8px;align-items:center;margin:6px 0}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+  input,select,textarea{width:100%;padding:8px;border-radius:10px;border:1px solid #283042;background:#0e1117;color:var(--ink)}
+  textarea{min-height:64px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .btn{cursor:pointer;border:1px solid #2a3344;background:#111826;color:var(--ink);padding:10px 12px;border-radius:12px}
+  .btn.primary{background:linear-gradient(180deg,#223247,#182233);border-color:#2b3a52}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .muted{color:var(--muted)}
+  canvas{width:100%;height:420px;background:#0e1117;border-radius:12px;border:1px solid #1b1f2a}
+  .small{font-size:12px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#132033;border:1px solid #213045;margin-right:6px}
+  .hr{height:1px;background:#1b1f2a;margin:10px 0}
+  .legendWrap{max-height:140px;overflow:auto;border:1px solid #1b1f2a;border-radius:10px;padding:6px}
+  table{width:100%;border-collapse:collapse;border:1px solid #1b1f2a}
+  th,td{border-top:1px solid #1b1f2a;padding:6px 8px;text-align:left;font-size:12px}
+  th{color:#cfe7ff}
+  .progress{height:8px;background:#0e1117;border:1px solid #213045;border-radius:6px;overflow:hidden}
+  .bar{height:100%;background:#2d7df4}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cognitive Agency × Epistemic Autonomy — 1,000 agents</h1>
+  <div class="muted small">Now with testimonial injustice, institutional broadcasts, and network topology • Single-run + Batch presets</div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: controls -->
+  <section class="card">
+    <h3 style="margin:0 0 8px">Single Run</h3>
+    <div class="grid2">
+      <div>
+        <label for="nAgents">Agents (max 1000)</label>
+        <input id="nAgents" type="number" min="2" max="1000" value="200">
+      </div>
+      <div>
+        <label for="steps">Steps (≈ days)</label>
+        <input id="steps" type="number" min="10" max="5000" step="5" value="365">
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div>
+        <label for="inTrust">In-group trust</label>
+        <input id="inTrust" type="range" min="0" max="3" step="0.1" value="1.8" oninput="outIn.innerText=this.value">
+        <div class="small">value: <span id="outIn" class="mono">1.8</span></div>
+      </div>
+      <div>
+        <label for="outTrust">Out-group trust</label>
+        <input id="outTrust" type="range" min="0" max="3" step="0.1" value="0.6" oninput="outOut.innerText=this.value">
+        <div class="small">value: <span id="outOut" class="mono">0.6</span></div>
+      </div>
+      <div>
+        <label for="bounded">Bounded confidence ε</label>
+        <input id="bounded" type="range" min="0" max="0.5" step="0.01" value="0.05" oninput="outBC.innerText=this.value">
+        <div class="small">value: <span id="outBC" class="mono">0.05</span></div>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div>
+        <label for="noise">Noise σ</label>
+        <input id="noise" type="range" min="0" max="0.2" step="0.005" value="0.01" oninput="outNoise.innerText=this.value">
+        <div class="small">value: <span id="outNoise" class="mono">0.01</span></div>
+      </div>
+      <div>
+        <label for="eWeight">Evidence weight</label>
+        <input id="eWeight" type="range" min="0" max="1" step="0.01" value="0.05" oninput="outEW.innerText=this.value">
+        <div class="small">value: <span id="outEW" class="mono">0.05</span></div>
+      </div>
+      <div>
+        <label for="truth">Truth baseline</label>
+        <input id="truth" type="range" min="0" max="1" step="0.01" value="0.7" oninput="outTruth.innerText=this.value">
+        <div class="small">value: <span id="outTruth" class="mono">0.70</span></div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+    <h4 style="margin:4px 0">Agent arrays (optional, comma-sep; blank = auto)</h4>
+    <input id="ca" placeholder="CA: 0.9,0.7,... (len=N)"/>
+    <input id="ea" placeholder="EA: 0.8,0.8,... (len=N)"/>
+    <input id="groups" placeholder="Groups: 0,0,1,1,... (len=N)"/>
+    <input id="initBeliefs" placeholder="Init beliefs: 0.2,0.6,... (len=N)"/>
+
+    <div class="hr"></div>
+    <h4 style="margin:4px 0">Testimonial Injustice (roles)</h4>
+    <div class="grid3">
+      <div><label for="roleShare">% discounted</label><input id="roleShare" type="number" min="0" max="100" value="20"></div>
+      <div><label for="roleDiscount">Discount multiplier</label><input id="roleDiscount" type="range" min="0" max="1" step="0.05" value="0.5" oninput="outRole.innerText=this.value"><div class="small">value: <span id="outRole" class="mono">0.5</span></div></div>
+      <div><label for="repairTime">Repair at step (-1=never)</label><input id="repairTime" type="number" min="-1" max="5000" value="-1"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="repairDiscount">Repair multiplier</label><input id="repairDiscount" type="range" min="0" max="1" step="0.05" value="1" oninput="outRepair.innerText=this.value"><div class="small">value: <span id="outRepair" class="mono">1.0</span></div></div>
+      <div><label for="repairOutTrust">Repair out-trust (blank=unchanged)</label><input id="repairOutTrust" type="text" placeholder="e.g., 0.8"></div>
+    </div>
+
+    <div class="hr"></div>
+    <h4 style="margin:4px 0">Institutional Broadcast</h4>
+    <div class="grid3">
+      <div><label for="instTime">Broadcast time t*</label><input id="instTime" type="number" min="-1" max="5000" value="-1"></div>
+      <div><label for="instWeight">Broadcast weight w</label><input id="instWeight" type="range" min="0" max="0.5" step="0.01" value="0.1" oninput="outIW.innerText=this.value"><div class="small">value: <span id="outIW" class="mono">0.10</span></div></div>
+      <div><label for="instBelief">Broadcast belief b*</label><input id="instBelief" type="text" placeholder="blank = use truth"></div>
+    </div>
+
+    <div class="hr"></div>
+    <h4 style="margin:4px 0">Network Topology</h4>
+    <div class="grid3">
+      <div>
+        <label for="samplingMode">Sampling mode</label>
+        <select id="samplingMode">
+          <option value="random" selected>Random (baseline)</option>
+          <option value="smallworld">Small-world (Watts–Strogatz)</option>
+        </select>
+      </div>
+      <div><label for="netK">k neighbors (small-world)</label><input id="netK" type="number" min="2" max="100" value="10"></div>
+      <div><label for="netP">rewire p</label><input id="netP" type="number" min="0" max="1" step="0.01" value="0.05"></div>
+    </div>
+
+    <div class="hr"></div>
+    <div class="grid2">
+      <div>
+        <label for="displayMax">Display up to</label>
+        <input id="displayMax" type="number" min="5" max="1000" value="120">
+      </div>
+      <div>
+        <label for="displayMode">Subset mode</label>
+        <select id="displayMode">
+          <option value="head">First K</option>
+          <option value="tail">Last K</option>
+          <option value="spread" selected>Spread K</option>
+          <option value="random">Random K</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row" style="gap:10px;margin-top:10px">
+      <button id="btnRandom" class="btn">Auto-fill arrays</button>
+      <button id="btnRun" class="btn primary">Run Simulation</button>
+      <button id="btnCSV" class="btn" disabled>Download CSV (single run)</button>
+    </div>
+
+    <div class="hr"></div>
+    <h3 style="margin:8px 0">Batch (auto runs + summary CSV)</h3>
+    <div class="small muted" style="margin-bottom:6px">Enter comma-separated lists. The batch runs the full Cartesian product.</div>
+
+    <div class="grid2">
+      <div><label for="batchN">N</label><input id="batchN" type="text" value="200"></div>
+      <div><label for="batchSteps">Steps</label><input id="batchSteps" type="text" value="365"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="batchIn">inGroupTrust</label><input id="batchIn" type="text" value="1.2,1.8,2.4"></div>
+      <div><label for="batchOut">outGroupTrust</label><input id="batchOut" type="text" value="0.2,0.6,1.0"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="batchEps">epsilon</label><input id="batchEps" type="text" value="0.02,0.05,0.08"></div>
+      <div><label for="batchNoise">sigma</label><input id="batchNoise" type="text" value="0.00,0.01"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="batchEW">evidence weight</label><input id="batchEW" type="text" value="0.02,0.05"></div>
+      <div><label for="batchTruth">truth baseline</label><input id="batchTruth" type="text" value="0.6,0.7"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="batchCA">CA: scalar or U(a,b)/N(m,s)</label><input id="batchCA" type="text" value="0.3,0.6,U(0.4,0.9)"></div>
+      <div><label for="batchEA">EA: scalar or U(a,b)/N(m,s)</label><input id="batchEA" type="text" value="0.3,0.8,N(0.6,0.15)"></div>
+    </div>
+
+    <div class="grid2">
+      <div><label for="batchRoleShare">% discounted</label><input id="batchRoleShare" type="text" value="0,20"></div>
+      <div><label for="batchRoleDiscount">role discount</label><input id="batchRoleDiscount" type="text" value="0.5,1.0"></div>
+    </div>
+    <div class="grid3">
+      <div><label for="batchRepairTime">repair time</label><input id="batchRepairTime" type="text" value="-1,150"></div>
+      <div><label for="batchRepairDiscount">repair discount</label><input id="batchRepairDiscount" type="text" value="1.0"></div>
+      <div><label for="batchRepairOut">repair out-trust</label><input id="batchRepairOut" type="text" value=""></div>
+    </div>
+
+    <div class="grid3">
+      <div><label for="batchInstTime">inst time</label><input id="batchInstTime" type="text" value="-1,150"></div>
+      <div><label for="batchInstW">inst weight</label><input id="batchInstW" type="text" value="0.0,0.05,0.1,0.2"></div>
+      <div><label for="batchInstB">inst belief</label><input id="batchInstB" type="text" value=""></div>
+    </div>
+
+    <div class="grid3">
+      <div>
+        <label for="batchSampling">sampling</label>
+        <select id="batchSampling">
+          <option value="random" selected>random</option>
+          <option value="smallworld">smallworld</option>
+        </select>
+      </div>
+      <div><label for="batchK">k neighbors</label><input id="batchK" type="text" value="10"></div>
+      <div><label for="batchP">rewire p</label><input id="batchP" type="text" value="0.05"></div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label for="batchShow">Show each run</label>
+        <select id="batchShow">
+          <option value="yes">Yes (slower)</option>
+          <option value="no" selected>No (fast)</option>
+        </select>
+      </div>
+      <div><label for="batchDisplay">Display up to</label><input id="batchDisplay" type="number" min="5" max="1000" value="120"></div>
+    </div>
+
+    <div class="row" style="gap:8px;margin-top:8px">
+      <button id="btnPresetInjustice" class="btn">Preset A: Injustice & Repair</button>
+      <button id="btnPresetInstitution" class="btn">Preset B: Institution</button>
+    </div>
+
+    <div class="row" style="gap:10px; margin-top:10px;">
+      <button id="btnBatchStart" class="btn primary">Start Batch</button>
+      <button id="btnBatchStop" class="btn" disabled>Stop Batch</button>
+      <button id="btnBatchCSV" class="btn" disabled>Download Batch CSV</button>
+    </div>
+
+    <div class="row" style="align-items:center;gap:10px;margin-top:6px">
+      <div class="progress" style="flex:1"><div id="batchBar" class="bar" style="width:0%"></div></div>
+      <div class="small mono" id="batchStatus">—</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: plot + stats + table -->
+  <section class="card">
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <div>
+        <span class="tag">Avg ⟨b⟩: <span id="avg" class="mono">—</span></span>
+        <span class="tag">Std σ: <span id="std" class="mono">—</span></span>
+        <span class="tag">Polarization Δ: <span id="pol" class="mono">—</span></span>
+        <span class="tag">Displayed: <span id="dispCount" class="mono">—</span></span>
+      </div>
+      <div class="muted small">Legend toggles apply to displayed subset</div>
+    </div>
+    <canvas id="chart" width="1200" height="420"></canvas>
+    <div class="legendWrap" id="legend"></div>
+    <div class="hr"></div>
+
+    <h3 style="margin:0 0 6px">Batch Summary</h3>
+    <div class="small muted" style="margin-bottom:6px">One row per run (parameters + metrics).</div>
+    <div style="overflow:auto;max-height:260px;border:1px solid #1b1f2a;border-radius:10px">
+      <table id="batchTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>N</th><th>steps</th>
+            <th>in</th><th>out</th><th>ε</th><th>σ</th>
+            <th>eW</th><th>truth</th>
+            <th>CA</th><th>EA</th>
+            <th>role%</th><th>roleDisc</th><th>repairT</th><th>repairDisc</th><th>repairOut</th>
+            <th>instT</th><th>instW</th><th>instB</th>
+            <th>sampling</th><th>k</th><th>p</th>
+            <th>avg</th><th>std</th><th>Δ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+/*** Utilities ***/
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+function parseNums(str){ if(!str||!str.trim())return[]; return str.split(/[\s,]+/).filter(Boolean).map(Number); }
+function parseTokens(str){ if(!str||!str.trim())return[]; return str.split(/[\s,]+/).filter(Boolean); }
+function gaussian(mu=0,sigma=1){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return mu+sigma*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function mean(a){return a.reduce((s,x)=>s+x,0)/a.length}
+function stdev(a){const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)*(x-m))))}
+function range(n){return Array.from({length:n},(_,i)=>i)}
+function sampleIndices(N,K,mode='spread'){
+  K=Math.min(K,N);
+  if(mode==='head')return range(K);
+  if(mode==='tail')return range(K).map(i=>N-K+i);
+  if(mode==='random'){const s=new Set(); while(s.size<K)s.add(Math.floor(Math.random()*N)); return Array.from(s).sort((a,b)=>a-b);}
+  if(K===1)return [Math.floor((N-1)/2)];
+  const step=(N-1)/(K-1); return range(K).map(i=>Math.round(i*step));
+}
+function downloadBlob(text,filename,mime='text/csv'){ const blob=new Blob([text],{type:mime}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+
+/*** CA/EA token parsing ***/
+function parseSpecToken(token){
+  const num=Number(token); if(!Number.isNaN(num)) return {kind:'scalar',value:clamp(num,0,1),label:String(num)};
+  const u=token.match(/^U\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)$/i);
+  if(u) return {kind:'uniform',a:clamp(Number(u[1]),0,1),b:clamp(Number(u[2]),0,1),label:`U(${u[1]},${u[2]})`};
+  const n=token.match(/^N\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)$/i);
+  if(n) return {kind:'normal',m:clamp(Number(n[1]),0,1),s:Math.max(0,Number(n[2])),label:`N(${n[1]},${n[2]})`};
+  return {kind:'scalar',value:0.5,label:token};
+}
+function realizeArrayFromSpec(spec,n){
+  if(spec.kind==='scalar') return Array.from({length:n},()=>spec.value);
+  if(spec.kind==='uniform'){ const a=Math.min(spec.a,spec.b), b=Math.max(spec.a,spec.b); return Array.from({length:n},()=>clamp(a+Math.random()*(b-a),0,1)); }
+  if(spec.kind==='normal'){ const m=spec.m,s=spec.s; return Array.from({length:n},()=>clamp(m+gaussian(0,s),0,1)); }
+  return Array.from({length:n},()=>0.5);
+}
+
+/*** Network: Watts–Strogatz small-world ***/
+function buildSmallWorld(n,k,p){
+  k = Math.max(2, Math.min(k, n-1)); if(k%2!==0)k++; // even k
+  const nbrs=Array.from({length:n},()=>new Set());
+  // ring lattice
+  for(let i=0;i<n;i++){
+    for(let d=1; d<=k/2; d++){
+      const j=(i+d)%n, jj=(i - d + n)%n;
+      nbrs[i].add(j); nbrs[i].add(jj);
+    }
+  }
+  // rewiring
+  for(let i=0;i<n;i++){
+    for(let d=1; d<=k/2; d++){
+      const j=(i+d)%n;
+      if(Math.random()<p){
+        // rewire i--j to i--m
+        nbrs[i].delete(j); nbrs[j].delete(i);
+        let m=i;
+        while(m===i || nbrs[i].has(m)){ m=Math.floor(Math.random()*n); }
+        nbrs[i].add(m); nbrs[m].add(i);
+      }
+    }
+  }
+  // return as arrays
+  return Array.from({length:n}, (_,i)=> Array.from(nbrs[i]));
+}
+
+/*** Simulation core (augmented) ***/
+function runSim(opts){
+  const { n, steps, inTrust, outTrust, bounded, noise, eWeight, truth,
+          CA, EA, groups, roles, roleDiscount, repairTime, repairDiscount, repairOutTrust,
+          instTime, instWeight, instBelief,
+          samplingMode, neighbors // for small-world
+        } = opts;
+
+  const beliefs = opts.initBeliefs.slice();
+  const history = [beliefs.slice()];
+
+  for (let t=0; t<steps; t++){
+    const next = beliefs.slice();
+
+    // dynamic repair toggles
+    const roleMultNow = (repairTime>=0 && t>=repairTime) ? repairDiscount : roleDiscount;
+    const outTrustNow = (repairTime>=0 && t>=repairTime && typeof repairOutTrust==='number' && !Number.isNaN(repairOutTrust)) ? repairOutTrust : outTrust;
+
+    for (let i=0;i<n;i++){
+      const ca=clamp(CA[i],0,1), ea=clamp(EA[i],0,1);
+
+      // choose peers
+      let peers;
+      if (samplingMode==='smallworld' && neighbors){
+        const nbr = neighbors[i];
+        // EA controls how many of my neighbors I sample
+        const m = Math.max(1, Math.round(1 + ea*(nbr.length-1)));
+        const pick = new Set();
+        while(pick.size<m){ pick.add(nbr[Math.floor(Math.random()*nbr.length)]); }
+        peers = Array.from(pick);
+      } else {
+        const sampleSize = Math.max(1, Math.round(1 + ea*(n-1)));
+        const idxs=new Set();
+        while(idxs.size<sampleSize){ const j=Math.floor(Math.random()*n); if(j!==i) idxs.add(j); }
+        peers=Array.from(idxs);
+      }
+
+      // social mix with injustice & bounded confidence
+      let numer=0, denom=0;
+      for(const j of peers){
+        const same = groups[i]===groups[j];
+        const base = (same? inTrust : outTrustNow) * ((roles && roles[j]==='discounted') ? roleMultNow : 1.0);
+        const diff = Math.abs(beliefs[i]-beliefs[j]);
+        if (bounded>0 && diff>bounded) continue;
+        numer += base*beliefs[j]; denom += base;
+      }
+      const social = denom>0 ? numer/denom : beliefs[i];
+
+      // update
+      let updated = (1-ca)*beliefs[i] + ca*social;
+      updated = (1-eWeight)*updated + eWeight*truth;
+
+      // institutional broadcast at t==instTime
+      if (typeof instTime==='number' && instTime>=0 && t===instTime){
+        const w = clamp(instWeight||0,0,1);
+        const bstar = (typeof instBelief==='number' && !Number.isNaN(instBelief)) ? instBelief : truth;
+        updated = (1-w)*updated + w*bstar;
+      }
+
+      // noise + clamp
+      updated += gaussian(0, noise);
+      next[i]=clamp(updated,0,1);
+    }
+
+    for(let i=0;i<n;i++) beliefs[i]=next[i];
+    history.push(beliefs.slice());
+  }
+  return history;
+}
+
+/*** Charting ***/
+function drawChart(canvas, history, indicesToDraw, mask){
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#1b2536'; ctx.lineWidth=1;
+  for(let y=0;y<=1;y+=0.25){
+    const yy=canvas.height-20 - y*(canvas.height-40);
+    ctx.beginPath(); ctx.moveTo(40,yy); ctx.lineTo(canvas.width-10,yy); ctx.stroke();
+    ctx.fillStyle='#778399'; ctx.fillText(y.toFixed(2),8,yy+3);
+  }
+  ctx.fillStyle='#99a7b6'; ctx.fillText('t',canvas.width-20,canvas.height-6); ctx.fillText('belief',6,14);
+  if(!history || !history.length) return;
+  const T=history.length;
+  const color=i=>`hsl(${(i*53)%360} 76% 64%)`;
+  indicesToDraw.forEach((agentIdx,k)=>{
+    if(mask && !mask[k]) return;
+    ctx.beginPath(); ctx.strokeStyle=color(agentIdx); ctx.lineWidth=1.6;
+    for(let t=0;t<T;t++){
+      const b=history[t][agentIdx];
+      const x=40 + (t/(T-1))*(canvas.width-60);
+      const y=canvas.height-20 - b*(canvas.height-40);
+      if(t===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  });
+}
+
+/*** CSV helpers ***/
+function historyToCSV(history){
+  const T=history.length,N=history[0].length;
+  const header=['step',...Array.from({length:N},(_,i)=>`agent_${i}`)].join(',');
+  const lines=[header];
+  for(let t=0;t<T;t++) lines.push([t,...history[t].map(x=>x.toFixed(6))].join(','));
+  return lines.join('\n');
+}
+function rowsToCSV(rows){ return rows.map(r=>r.map(v=> (typeof v==='number'? v : String(v))).join(',')).join('\n'); }
+
+/*** DOM ***/
+const el=id=>document.getElementById(id);
+const chart=el('chart'), legend=el('legend');
+const nAgents=el('nAgents'), steps=el('steps'), inTrust=el('inTrust'), outTrust=el('outTrust');
+const bounded=el('bounded'), noise=el('noise'), eWeight=el('eWeight'), truth=el('truth');
+const ca=el('ca'), ea=el('ea'), groups=el('groups'), initBeliefs=el('initBeliefs');
+const roleShare=el('roleShare'), roleDiscount=el('roleDiscount'), repairTime=el('repairTime'), repairDiscount=el('repairDiscount'), repairOutTrust=el('repairOutTrust');
+const instTime=el('instTime'), instWeight=el('instWeight'), instBelief=el('instBelief');
+const samplingMode=el('samplingMode'), netK=el('netK'), netP=el('netP');
+const displayMax=el('displayMax'), displayMode=el('displayMode');
+const btnRandom=el('btnRandom'), btnRun=el('btnRun'), btnCSV=el('btnCSV');
+const avg=el('avg'), std=el('std'), pol=el('pol'), dispCount=el('dispCount');
+
+const batchN=el('batchN'), batchSteps=el('batchSteps'), batchIn=el('batchIn'), batchOut=el('batchOut'), batchEps=el('batchEps'), batchNoise=el('batchNoise');
+const batchEW=el('batchEW'), batchTruth=el('batchTruth'), batchCA=el('batchCA'), batchEA=el('batchEA');
+const batchRoleShare=el('batchRoleShare'), batchRoleDiscount=el('batchRoleDiscount'),
+      batchRepairTime=el('batchRepairTime'), batchRepairDiscount=el('batchRepairDiscount'), batchRepairOut=el('batchRepairOut');
+const batchInstTime=el('batchInstTime'), batchInstW=el('batchInstW'), batchInstB=el('batchInstB');
+const batchSampling=el('batchSampling'), batchK=el('batchK'), batchP=el('batchP');
+const batchShow=el('batchShow'), batchDisplay=el('batchDisplay');
+const btnBatchStart=el('btnBatchStart'), btnBatchStop=el('btnBatchStop'), btnBatchCSV=el('btnBatchCSV');
+const btnPresetInjustice=el('btnPresetInjustice'), btnPresetInstitution=el('btnPresetInstitution');
+const batchBar=el('batchBar'), batchStatus=el('batchStatus'), batchTable=document.getElementById('batchTable').querySelector('tbody');
+
+let currentHistory=null, drawnIndices=[], drawMask=[], batchAbort=false, batchRows=[];
+
+/*** Helpers to build arrays ***/
+function parseOrFill(len, field, gen, clamp01=true){
+  if(field.value.trim()){
+    const xs = field.value.split(/[\s,]+/).filter(Boolean).map(Number);
+    const out = xs.slice(0,len);
+    while(out.length<len) out.push(out[out.length-1] ?? 0.5);
+    return clamp01 ? out.map(x=>clamp(x,0,1)) : out;
+  }
+  return Array.from({length:len},(_,i)=> gen(i));
+}
+
+function autofill(){
+  const n=Number(nAgents.value), half=Math.floor(n/2);
+  ca.value = Array.from({length:n},()=> (Math.random()*0.4+0.6).toFixed(2)).join(',');
+  ea.value = Array.from({length:n},()=> (Math.random()*0.6+0.2).toFixed(2)).join(',');
+  groups.value = Array.from({length:n},(_,i)=> i<half?0:1).join(',');
+  initBeliefs.value = Array.from({length:n},(_,i)=> (i<half? Math.random()*0.3+0.1 : Math.random()*0.3+0.6).toFixed(2)).join(',');
+}
+
+function buildLegend(indices){
+  legend.innerHTML=''; drawMask = Array.from({length:indices.length},()=>true);
+  indices.forEach((agentIdx,k)=>{
+    const b=document.createElement('button'); b.className='btn small'; b.textContent=`Agent ${agentIdx}`;
+    b.style.borderColor='#2b3a52'; b.style.background='transparent'; b.style.margin='2px';
+    b.onclick=()=>{ drawMask[k]=!drawMask[k]; b.style.color=drawMask[k]?'#cfe7ff':'#6b7686'; drawChart(chart,currentHistory,drawnIndices,drawMask); };
+    legend.appendChild(b);
+  });
+}
+
+/*** Single run ***/
+function runSingle(){
+  const n=clamp(Number(nAgents.value)|0,2,1000); nAgents.value=n;
+  const S=clamp(Number(steps.value)|0,10,5000);
+
+  const CA=parseOrFill(n,ca, _=>Math.random()*0.4+0.6);
+  const EA=parseOrFill(n,ea, _=>Math.random()*0.6+0.2);
+  const G =parseOrFill(n,groups, i=> i<Math.floor(n/2)?0:1,false).map(x=>Math.round(x));
+  const B0=parseOrFill(n,initBeliefs, i=> (i<Math.floor(n/2)? Math.random()*0.3+0.1 : Math.random()*0.3+0.6));
+
+  // roles
+  const pct=clamp(Number(roleShare.value)/100,0,1);
+  const roles = Array.from({length:n},()=> 'normal');
+  const m=Math.round(pct*n); const idxs=sampleIndices(n,m,'random');
+  idxs.forEach(i=> roles[i]='discounted');
+
+  // network
+  let neighbors=null;
+  const sm = samplingMode.value;
+  if (sm==='smallworld'){
+    neighbors = buildSmallWorld(n, Number(netK.value)|0, Number(netP.value));
+  }
+
+  const history = runSim({
+    n, steps:S,
+    inTrust:Number(inTrust.value), outTrust:Number(outTrust.value),
+    bounded:Number(bounded.value), noise:Number(noise.value),
+    eWeight:Number(eWeight.value), truth:Number(truth.value),
+    CA, EA, groups:G, roles,
+    roleDiscount:Number(roleDiscount.value),
+    repairTime:Number(repairTime.value)|0,
+    repairDiscount:Number(repairDiscount.value),
+    repairOutTrust: repairOutTrust.value.trim()==='' ? undefined : Number(repairOutTrust.value),
+    instTime:Number(instTime.value)|0,
+    instWeight:Number(instWeight.value),
+    instBelief: instBelief.value.trim()==='' ? undefined : Number(instBelief.value),
+    samplingMode: sm, neighbors,
+    initBeliefs:B0
+  });
+
+  currentHistory=history;
+  const last=history[history.length-1];
+  avg.textContent=mean(last).toFixed(4);
+  std.textContent=stdev(last).toFixed(4);
+  pol.textContent=(Math.max(...last)-Math.min(...last)).toFixed(4);
+
+  const K=clamp(Number(displayMax.value)|0,5,1000);
+  drawnIndices=sampleIndices(n,K,displayMode.value);
+  dispCount.textContent=String(drawnIndices.length);
+  buildLegend(drawnIndices);
+  drawChart(chart,history,drawnIndices,drawMask);
+  btnCSV.disabled=false;
+}
+
+btnRandom.addEventListener('click',autofill);
+btnRun.addEventListener('click',runSingle);
+btnCSV.addEventListener('click', ()=>{
+  if(!currentHistory) return;
+  downloadBlob(historyToCSV(currentHistory),'belief_history.csv');
+});
+autofill();
+
+/*** Batch mode (includes CA/EA distributions + new knobs) ***/
+const batchRowsHeader = ['idx','n','steps','inTrust','outTrust','epsilon','sigma','evidenceW','truth','CA','EA','rolePct','roleDisc','repairT','repairDisc','repairOut','instT','instW','instB','sampling','k','p','avg','std','delta'];
+
+function cartesian(arrs){ return arrs.reduce((acc,cur)=> acc.flatMap(a=> cur.map(c=> a.concat([c]))), [[]]); }
+function appendRow(idx,rowObj){
+  const tr=document.createElement('tr');
+  const cells=[
+    idx,rowObj.n,rowObj.steps,rowObj.inTrust,rowObj.outTrust,rowObj.eps,rowObj.sigma,rowObj.eW,rowObj.truth,
+    rowObj.caSpec,rowObj.eaSpec,rowObj.rolePct,rowObj.roleDisc,rowObj.repairT,rowObj.repairDisc,(rowObj.repairOut??''),rowObj.instT,rowObj.instW,(rowObj.instB??''),rowObj.sampling,rowObj.k,rowObj.p,
+    rowObj.avg.toFixed(4),rowObj.std.toFixed(4),rowObj.delta.toFixed(4)
+  ];
+  cells.forEach(v=>{ const td=document.createElement('td'); td.textContent=(typeof v==='number')? String(v): v; tr.appendChild(td); });
+  batchTable.appendChild(tr);
+}
+
+let CA_specs_cache=null, EA_specs_cache=null;
+function specsFrom(text){ return parseTokens(text).map(parseSpecToken); }
+
+async function runBatch(){
+  batchAbort=false; batchRows=[]; batchTable.innerHTML='';
+  btnBatchStart.disabled=true; btnBatchStop.disabled=false; btnBatchCSV.disabled=true;
+  batchStatus.textContent='Preparing...'; batchBar.style.width='0%';
+
+  const Ns = parseNums(batchN.value).length? parseNums(batchN.value): [Number(nAgents.value)];
+  const Steps = parseNums(batchSteps.value).length? parseNums(batchSteps.value): [Number(steps.value)];
+  const In = parseNums(batchIn.value), Out = parseNums(batchOut.value);
+  const Eps = parseNums(batchEps.value), Sig = parseNums(batchNoise.value);
+  const EW = parseNums(batchEW.value), Truth = parseNums(batchTruth.value);
+
+  const CA_specs = (CA_specs_cache = specsFrom(batchCA.value));
+  const EA_specs = (EA_specs_cache = specsFrom(batchEA.value));
+
+  // new knobs
+  const RolePct = parseNums(batchRoleShare.value); // percent
+  const RoleDisc = parseNums(batchRoleDiscount.value);
+  const RepT = parseNums(batchRepairTime.value); // -1 or t
+  const RepDisc = parseNums(batchRepairDiscount.value);
+  const RepOut = parseNums(batchRepairOut.value); // optional
+  const InstT = parseNums(batchInstTime.value);
+  const InstW = parseNums(batchInstW.value);
+  const InstB = parseNums(batchInstB.value); // optional
+  const Sampling = [batchSampling.value];
+  const Ks = parseNums(batchK.value); const Ps = parseNums(batchP.value);
+
+  const grid = cartesian([Ns,Steps,In,Out,Eps,Sig,EW,Truth,CA_specs,EA_specs,RolePct,RoleDisc,RepT,RepDisc,(RepOut.length?RepOut:[NaN]),InstT,InstW,(InstB.length?InstB:[NaN]),Sampling,Ks,Ps]);
+  const total = grid.length; let done=0;
+  const showEach = batchShow.value==='yes'; const dispK=clamp(Number(batchDisplay.value)|0,5,1000);
+
+  for (let g=0; g<grid.length; g++){
+    if(batchAbort) break;
+    const [n,S,inT,outT,eps,sig,eW,tr,caSpec,eaSpec,rolePct,roleDisc,repT,repDisc,repOut,instT,instW,instB,sampling,k,p] = grid[g];
+
+    // arrays & roles
+    const CA = realizeArrayFromSpec(caSpec,n);
+    const EA = realizeArrayFromSpec(eaSpec,n);
+    const G = Array.from({length:n},(_,i)=> i<Math.floor(n/2)?0:1);
+    const B0= Array.from({length:n},(_,i)=> (i<Math.floor(n/2)? Math.random()*0.3+0.1 : Math.random()*0.3+0.6));
+    const roles = Array.from({length:n},()=> 'normal');
+    const m = Math.round(clamp(rolePct,0,100)/100 * n);
+    sampleIndices(n, m, 'random').forEach(i=> roles[i]='discounted');
+
+    // network
+    let neighbors=null;
+    if (sampling==='smallworld') neighbors = buildSmallWorld(n, Math.max(2,Math.min(Number(k)|0,Math.max(2,Math.floor(n/4)))) , Number(p));
+
+    const history = runSim({
+      n, steps:S,
+      inTrust:inT, outTrust:outT, bounded:eps, noise:sig,
+      eWeight:eW, truth:tr, CA, EA, groups:G, roles,
+      roleDiscount:roleDisc,
+      repairTime:repT, repairDiscount:repDisc, repairOutTrust:(Number.isNaN(repOut)? undefined : repOut),
+      instTime:instT, instWeight:instW, instBelief:(Number.isNaN(instB)? undefined : instB),
+      samplingMode:sampling, neighbors, initBeliefs:B0
+    });
+
+    const last=history[history.length-1];
+    const row={
+      n,steps:S,inTrust:inT,outTrust:outT,eps,sigma:sig,eW,truth:tr,
+      caSpec:caSpec.label, eaSpec:eaSpec.label,
+      rolePct, roleDisc, repairT:repT, repairDisc:repDisc, repairOut:(Number.isNaN(repOut)? '' : repOut),
+      instT, instW, instB:(Number.isNaN(instB)? '' : instB),
+      sampling, k, p,
+      avg:mean(last), std:stdev(last), delta:(Math.max(...last)-Math.min(...last))
+    };
+    batchRows.push(row); appendRow(batchRows.length,row);
+
+    if(showEach){
+      const indices=sampleIndices(n, Math.min(dispK,n), 'spread');
+      const mask=Array.from({length:indices.length},()=>true);
+      currentHistory=history; drawnIndices=indices; drawMask=mask;
+      avg.textContent=row.avg.toFixed(4); std.textContent=row.std.toFixed(4); pol.textContent=row.delta.toFixed(4);
+      dispCount.textContent=String(indices.length); buildLegend(indices); drawChart(chart,history,indices,mask);
+      await new Promise(r=>requestAnimationFrame(r));
+    }
+
+    done++; const pct=Math.round(100*done/total);
+    batchBar.style.width=pct+'%'; batchStatus.textContent=`${done} / ${total}`;
+    await new Promise(r=>setTimeout(r)); // keep UI responsive
+  }
+
+  btnBatchStart.disabled=false; btnBatchStop.disabled=true; btnBatchCSV.disabled=(batchRows.length===0);
+  batchStatus.textContent = batchAbort? `Stopped at ${batchRows.length} / ${total}` : `Done: ${batchRows.length} runs`;
+}
+
+function downloadBatchCSV(){
+  if(!batchRows.length) return;
+  const rows=[batchRowsHeader];
+  batchRows.forEach((r,i)=>{
+    rows.push([
+      i+1,r.n,r.steps,r.inTrust,r.outTrust,r.eps,r.sigma,r.eW,r.truth,r.caSpec,r.eaSpec,
+      r.rolePct,r.roleDisc,r.repairT,r.repairDisc,(r.repairOut??''),r.instT,r.instW,(r.instB??''),r.sampling,r.k,r.p,
+      r.avg,r.std,r.delta
+    ]);
+  });
+  downloadBlob(rowsToCSV(rows),'batch_summary.csv');
+}
+
+/*** Presets ***/
+btnPresetInjustice.addEventListener('click', ()=>{
+  batchOut.value="0.1,0.2,0.4,0.8";
+  batchIn.value="1.2,1.8,2.4";
+  batchEps.value="0.02,0.05,0.08";
+  batchNoise.value="0.00,0.01";
+  batchEW.value="0.02,0.05,0.10";
+  batchCA.value="0.3,0.6";
+  batchEA.value="0.3,0.6,U(0.4,0.9)";
+  batchRoleShare.value="20,40";
+  batchRoleDiscount.value="0.4,0.6,1.0";
+  batchRepairTime.value="-1,150";
+  batchRepairDiscount.value="1.0";
+  batchRepairOut.value="0.8";
+  batchSampling.value="random";
+  batchInstTime.value="-1";
+  batchInstW.value="0.0";
+  batchInstB.value="";
+});
+
+btnPresetInstitution.addEventListener('click', ()=>{
+  batchOut.value="0.2,0.6,1.0";
+  batchIn.value="1.2,1.8";
+  batchEps.value="0.02,0.05";
+  batchNoise.value="0.00,0.01";
+  batchEW.value="0.02,0.05";
+  batchCA.value="0.3,0.6";
+  batchEA.value="0.3,0.8";
+  batchRoleShare.value="0,20";
+  batchRoleDiscount.value="0.5,1.0";
+  batchRepairTime.value="-1";
+  batchRepairDiscount.value="1.0";
+  batchRepairOut.value="";
+  batchInstTime.value="-1,150";
+  batchInstW.value="0.0,0.05,0.1,0.2,0.3";
+  batchInstB.value="";
+  batchSampling.value="smallworld";
+  batchK.value="8,12";
+  batchP.value="0.02,0.08";
+});
+
+btnBatchStart.addEventListener('click', runBatch);
+btnBatchStop.addEventListener('click', ()=>{ batchAbort=true; });
+btnBatchCSV.addEventListener('click', downloadBatchCSV);
+</script>
+</body>
+</html>
