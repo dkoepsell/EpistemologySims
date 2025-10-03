@@ -7,7 +7,7 @@ This simulation is designed as part of ongoing research in *The Geometry of the 
 
 ## Acknowledgments & Credit  
 
-This project would not exist without the foundational insights of **Preston [Last Name]**, whose thesis provided both the **conceptual framing** and the **motivating research question**:  
+This project would not exist without the foundational insights of **Preston Justice]**, whose paper provided both the **conceptual framing** and the **motivating research question**:  
 
 - How do variations in *cognitive agency* and *epistemic autonomy* affect social knowledge, belief distribution, and systemic stability?  
 
