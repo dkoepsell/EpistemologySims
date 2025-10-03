@@ -46,7 +46,7 @@ Preston’s work directly inspired the design of the CA/EA sweeps, metrics, and 
 
 If you use this simulation in academic work, please cite:
 
-Preston, [Full Name]. [Thesis Title]. [Institution], [Year].
+Justice, Preston.
 
 Koepsell, David R. The Geometry of the Good (manuscript-in-progress).
 
