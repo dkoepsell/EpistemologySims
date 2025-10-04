@@ -44,7 +44,7 @@ Preston’s work directly inspired the design of the CA/EA sweeps, metrics, and 
 │   └── analysis.ipynb   # Example Jupyter Notebook for CSV data
 └── README.md
 
-FALSIFIABILITY: running the Falsifiable version:
+## FALSIFIABILITY: running the Falsifiable version:
 How to use (quick)
 
 Single run: try toggling Dual anchors = on, set truthA=0.35, truthB=0.85, envMixA=0.7, truthNoise=0.1, and play with Backfire (θ=0.25, p=0.25, gain=2). Watch for cases where more openness (higher EA/out-trust) doesn’t reduce Δ — that’s a candidate falsifier.
