@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CA × EA — Falsifiable Sim (noisy truth, dual anchors, backfire, shocks)</title>
+<style>
+  :root{--bg:#0b0c10;--panel:#12141a;--ink:#e9eef2;--muted:#9aa6b2}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  header{padding:16px 20px;border-bottom:1px solid #1b1f2a}
+  h1{font-size:18px;margin:0 0 4px}
+  .wrap{display:grid;grid-template-columns:440px 1fr;gap:14px;padding:14px}
+  .card{background:#12141a;border:1px solid #1b1f2a;border-radius:14px;padding:14px}
+  .row{display:flex;gap:8px;align-items:center;margin:6px 0}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+  input,select,textarea{width:100%;padding:8px;border-radius:10px;border:1px solid #283042;background:#0e1117;color:var(--ink)}
+  textarea{min-height:56px;resize:vertical}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .btn{cursor:pointer;border:1px solid #2a3344;background:#111826;color:var(--ink);padding:10px 12px;border-radius:12px}
+  .btn.primary{background:linear-gradient(180deg,#223247,#182233);border-color:#2b3a52}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  canvas{width:100%;height:420px;background:#0e1117;border-radius:12px;border:1px solid #1b1f2a}
+  .small{font-size:12px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#132033;border:1px solid #213045;margin-right:6px}
+  .hr{height:1px;background:#1b1f2a;margin:10px 0}
+  .legendWrap{max-height:140px;overflow:auto;border:1px solid #1b1f2a;border-radius:10px;padding:6px}
+  table{width:100%;border-collapse:collapse;border:1px solid #1b1f2a}
+  th,td{border-top:1px solid #1b1f2a;padding:6px 8px;text-align:left;font-size:12px}
+  th{color:#cfe7ff}
+  .progress{height:8px;background:#0e1117;border:1px solid #213045;border-radius:6px;overflow:hidden}
+  .bar{height:100%;background:#2d7df4}
+</style>
+</head>
+<body>
+<header>
+  <h1>CA × EA — Falsifiable Simulation</h1>
+  <div class="small" style="color:#9aa6b2">Adds noisy/biased evidence, dual anchors, non-monotonic (backfire) influence, and misinformation shocks. Single run + Batch.</div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: controls -->
+  <section class="card">
+    <h3 style="margin:0 0 8px">Single Run</h3>
+    <div class="grid2">
+      <div><label>Agents</label><input id="nAgents" type="number" min="2" max="1000" value="200"></div>
+      <div><label>Steps (≈ days)</label><input id="steps" type="number" min="10" max="5000" value="365"></div>
+    </div>
+
+    <div class="grid3">
+      <div><label>In-group trust</label><input id="inTrust" type="range" min="0" max="3" step="0.1" value="1.8" oninput="outIn.innerText=this.value"><div class="small">value: <span id="outIn" class="mono">1.8</span></div></div>
+      <div><label>Out-group trust</label><input id="outTrust" type="range" min="0" max="3" step="0.1" value="0.6" oninput="outOut.innerText=this.value"><div class="small">value: <span id="outOut" class="mono">0.6</span></div></div>
+      <div><label>Bounded confidence ε</label><input id="bounded" type="range" min="0" max="0.5" step="0.01" value="0.05" oninput="outBC.innerText=this.value"><div class="small">value: <span id="outBC" class="mono">0.05</span></div></div>
+    </div>
+
+    <div class="grid3">
+      <div><label>Noise σ</label><input id="noise" type="range" min="0" max="0.2" step="0.005" value="0.01" oninput="outNoise.innerText=this.value"><div class="small">value: <span id="outNoise" class="mono">0.01</span></div></div>
+      <div><label>Evidence weight</label><input id="eWeight" type="range" min="0" max="1" step="0.01" value="0.05" oninput="outEW.innerText=this.value"><div class="small">value: <span id="outEW" class="mono">0.05</span></div></div>
+      <div><label>Truth baseline</label><input id="truth" type="range" min="0" max="1" step="0.01" value="0.7" oninput="outTruth.innerText=this.value"><div class="small">value: <span id="outTruth" class="mono">0.70</span></div></div>
+    </div>
+
+    <div class="hr"></div>
+    <h4 style="margin:4px 0">Falsification Features</h4>
+    <div class="grid3">
+      <div><label>Truth noise (channel)</label><input id="truthNoise" type="number" step="0.01" min="0" max="0.5" value="0.00"></div>
+      <div><label>Truth bias</label><input id="truthBias" type="number" step="0.01" min="-0.5" max="0.5" value="0.00"></div>
+      <div><label>Seed (reproducible)</label><input id="seed" type="number" step="1" value="0" title="0 = random"></div>
+    </div>
+
+    <div class="grid3">
+      <div><label>Dual anchors?</label>
+        <select id="dualMode"><option value="off" selected>off</option><option value="on">on</option></select>
+      </div>
+      <div><label>truthA / truthB</label><input id="truthAB" type="text" value="0.4,0.8"></div>
+      <div><label>envMixA (0–1)</label><input id="envMixA" type="number" step="0.05" min="0" max="1" value="0.5"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Agent pref A: U(a,b) or scalar</label><input id="prefASpec" type="text" value="U(0.3,0.7)"></div>
+      <div><label>Misinfo shock: t, shift</label><input id="shock" type="text" placeholder="e.g., 180, -0.2"></div>
+    </div>
+
+    <div class="grid3">
+      <div><label>Backfire θ (diff)</label><input id="bfTheta" type="number" step="0.01" min="0" max="1" value="0.25"></div>
+      <div><label>Backfire p</label><input id="bfProb" type="number" step="0.01" min="0" max="1" value="0.10"></div>
+      <div><label>Backfire gain</label><input id="bfGain" type="number" step="0.1" min="0" max="3" value="1.0"></div>
+    </div>
+
+    <div class="hr"></div>
+    <h4 style="margin:4px 0">Agent arrays (optional)</h4>
+    <input id="ca" placeholder="CA: 0.9,0.7,... (len=N)"/>
+    <input id="ea" placeholder="EA: 0.8,0.8,... (len=N)"/>
+    <input id="groups" placeholder="Groups: 0,0,1,1,... (len=N)"/>
+    <input id="initBeliefs" placeholder="Init beliefs: 0.2,0.6,... (len=N)"/>
+
+    <div class="hr"></div>
+    <div class="grid2">
+      <div><label>Display up to</label><input id="displayMax" type="number" min="5" max="1000" value="120"></div>
+      <div><label>Subset mode</label>
+        <select id="displayMode"><option value="spread" selected>Spread</option><option value="head">Head</option><option value="tail">Tail</option><option value="random">Random</option></select>
+      </div>
+    </div>
+
+    <div class="row" style="gap:8px;margin-top:8px">
+      <button id="btnRandom" class="btn">Auto-fill arrays</button>
+      <button id="btnRun" class="btn primary">Run Simulation</button>
+      <button id="btnCSV" class="btn" disabled>Download CSV (single run)</button>
+    </div>
+
+    <div class="hr"></div>
+    <h3 style="margin:8px 0">Batch (auto runs + summary CSV)</h3>
+    <div class="small" style="color:#9aa6b2;margin-bottom:6px">Enter comma-separated lists. Runs the full cartesian product.</div>
+
+    <!-- Core -->
+    <div class="grid2">
+      <div><label>N</label><input id="batchN" type="text" value="200"></div>
+      <div><label>Steps</label><input id="batchSteps" type="text" value="365"></div>
+    </div>
+    <div class="grid2">
+      <div><label>inGroupTrust</label><input id="batchIn" type="text" value="1.2,1.8"></div>
+      <div><label>outGroupTrust</label><input id="batchOut" type="text" value="0.2,0.6,1.0"></div>
+    </div>
+    <div class="grid2">
+      <div><label>epsilon</label><input id="batchEps" type="text" value="0.02,0.05,0.08"></div>
+      <div><label>sigma</label><input id="batchNoise" type="text" value="0.00,0.01,0.03"></div>
+    </div>
+    <div class="grid2">
+      <div><label>evidence weight</label><input id="batchEW" type="text" value="0.02,0.05"></div>
+      <div><label>truth baseline</label><input id="batchTruth" type="text" value="0.6,0.7"></div>
+    </div>
+    <div class="grid2">
+      <div><label>CA (scalar/U(a,b)/N(m,s))</label><input id="batchCA" type="text" value="0.3,0.6,U(0.4,0.9)"></div>
+      <div><label>EA (scalar/U(a,b)/N(m,s))</label><input id="batchEA" type="text" value="0.3,0.8,N(0.6,0.15)"></div>
+    </div>
+
+    <!-- New falsification knobs -->
+    <div class="grid3">
+      <div><label>truthNoise</label><input id="batchTruthNoise" type="text" value="0.00,0.05,0.10"></div>
+      <div><label>truthBias</label><input id="batchTruthBias" type="text" value="0.0,0.1,-0.1"></div>
+      <div><label>seed</label><input id="batchSeed" type="text" value="0,1"></div>
+    </div>
+
+    <div class="grid3">
+      <div><label>dualMode</label><select id="batchDual"><option value="off" selected>off</option><option value="on">on</option></select></div>
+      <div><label>truthA,truthB</label><input id="batchTruthAB" type="text" value="0.4,0.8"></div>
+      <div><label>envMixA</label><input id="batchEnvMix" type="text" value="0.3,0.5,0.7"></div>
+    </div>
+    <div class="grid2">
+      <div><label>prefA spec</label><input id="batchPrefA" type="text" value="0.5,U(0.3,0.7)"></div>
+      <div><label>shock (t,shift)</label><input id="batchShock" type="text" value="-1,0 ; 180,-0.2"></div>
+    </div>
+
+    <div class="grid3">
+      <div><label>bfTheta</label><input id="batchBfTheta" type="text" value="0.25,0.35"></div>
+      <div><label>bfProb</label><input id="batchBfProb" type="text" value="0.00,0.10,0.25"></div>
+      <div><label>bfGain</label><input id="batchBfGain" type="text" value="1.0,2.0"></div>
+    </div>
+
+    <div class="grid2">
+      <div><label>Show each run</label><select id="batchShow"><option value="no" selected>No</option><option value="yes">Yes</option></select></div>
+      <div><label>Display up to</label><input id="batchDisplay" type="number" min="5" max="1000" value="120"></div>
+    </div>
+
+    <div class="row" style="gap:8px;margin-top:8px">
+      <button id="btnPresetFalsify1" class="btn">Preset: Backfire vs Openness</button>
+      <button id="btnPresetFalsify2" class="btn">Preset: Dual Truths + Shock</button>
+    </div>
+
+    <div class="row" style="gap:10px;margin-top:10px">
+      <button id="btnBatchStart" class="btn primary">Start Batch</button>
+      <button id="btnBatchStop" class="btn" disabled>Stop Batch</button>
+      <button id="btnBatchCSV" class="btn" disabled>Download Batch CSV</button>
+    </div>
+
+    <div class="row" style="align-items:center;gap:10px;margin-top:6px">
+      <div class="progress" style="flex:1"><div id="batchBar" class="bar" style="width:0%"></div></div>
+      <div class="small mono" id="batchStatus">—</div>
+    </div>
+  </section>
+
+  <!-- RIGHT: chart + stats + table -->
+  <section class="card">
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <div>
+        <span class="tag">Avg ⟨b⟩: <span id="avg" class="mono">—</span></span>
+        <span class="tag">Std σ: <span id="std" class="mono">—</span></span>
+        <span class="tag">Polarization Δ: <span id="pol" class="mono">—</span></span>
+        <span class="tag">MAE: <span id="mae" class="mono">—</span></span>
+        <span class="tag">tₜ (converge): <span id="tt" class="mono">—</span></span>
+        <span class="tag">Displayed: <span id="dispCount" class="mono">—</span></span>
+      </div>
+      <div class="small" style="color:#9aa6b2">MAE = mean abs error to closest anchor; tₜ = steps until std ≤ τ (0.05), else −1.</div>
+    </div>
+    <canvas id="chart" width="1200" height="420"></canvas>
+    <div class="legendWrap" id="legend"></div>
+    <div class="hr"></div>
+    <h3 style="margin:0 0 6px">Batch Summary</h3>
+    <div class="small" style="color:#9aa6b2;margin-bottom:6px">One row per run (parameters + metrics).</div>
+    <div style="overflow:auto;max-height:260px;border:1px solid #1b1f2a;border-radius:10px">
+      <table id="batchTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>N</th><th>steps</th>
+            <th>in</th><th>out</th><th>ε</th><th>σ</th><th>eW</th>
+            <th>truth</th><th>tNoise</th><th>tBias</th><th>dual</th><th>tA</th><th>tB</th><th>envA</th><th>prefA</th>
+            <th>shockT</th><th>shockΔ</th>
+            <th>bfθ</th><th>bfp</th><th>bfGain</th>
+            <th>CA</th><th>EA</th><th>seed</th>
+            <th>avg</th><th>std</th><th>Δ</th><th>mae</th><th>tt_converge</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+/*** RNG with seed ***/
+function mulberry32(a){return function(){var t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}}
+function RNG(seed){ let r=seed?mulberry32(seed>>>0):Math.random; return {rand:()=>r(), normal:(m=0,s=1)=>{let u=0,v=0;while(!u)u=r();while(!v)v=r();return m + s*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}}}
+
+/*** Utils ***/
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const stdev=a=>{const m=mean(a); return Math.sqrt(mean(a.map(x=>(x-m)*(x-m))))};
+const range=n=>Array.from({length:n},(_,i)=>i);
+function sampleIndices(N,K,mode='spread'){K=Math.min(K,N);if(mode==='head')return range(K);if(mode==='tail')return range(K).map(i=>N-K+i);if(mode==='random'){const s=new Set();while(s.size<K)s.add(Math.floor(Math.random()*N));return Array.from(s).sort((a,b)=>a-b)}if(K===1)return [Math.floor((N-1)/2)];const step=(N-1)/(K-1);return range(K).map(i=>Math.round(i*step))}
+function parseList(str){ if(!str||!str.trim())return[]; return str.split(/[\s,;]+/).filter(Boolean).map(Number) }
+function parseTokens(str){ if(!str||!str.trim())return[]; return str.split(/[\s,;]+/).filter(Boolean) }
+function parseSpecToken(token){ const num=Number(token); if(!Number.isNaN(num)) return {kind:'scalar',value:clamp(num,0,1),label:String(num)}; const u=token.match(/^U\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)$/i); if(u) return {kind:'uniform',a:clamp(Number(u[1]),0,1),b:clamp(Number(u[2]),0,1),label:`U(${u[1]},${u[2]})`}; const n=token.match(/^N\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)$/i); if(n) return {kind:'normal',m:clamp(Number(n[1]),0,1),s:Math.max(0,Number(n[2])),label:`N(${n[1]},${n[2]})`}; return {kind:'scalar',value:0.5,label:token}; }
+function realizeArrayFromSpec(spec,n,rng){ if(spec.kind==='scalar') return Array.from({length:n},()=>spec.value); if(spec.kind==='uniform'){ const a=Math.min(spec.a,spec.b), b=Math.max(spec.a,spec.b); return Array.from({length:n},()=> clamp(a + rng.rand()*(b-a),0,1)) } if(spec.kind==='normal'){ const m=spec.m,s=spec.s; return Array.from({length:n},()=> clamp(m + rng.normal(0,s),0,1)) } return Array.from({length:n},()=>0.5) }
+
+/*** Evidence mixer (single or dual anchors with noise, bias, shock) ***/
+function evidenceDraw(t, baseTruth, dualMode, truthA, truthB, envMixA, prefA_i, truthNoise, truthBias, shockT, shockDelta, rng){
+  let anchor;
+  if (dualMode==='on'){
+    const mix = clamp(envMixA,0,1);
+    // environment chooses A with mix; agent preference skews toward A
+    const pA = clamp(0.5*mix + 0.5*prefA_i, 0, 1);
+    anchor = (rng.rand() < pA) ? truthA : truthB;
+  } else {
+    anchor = baseTruth;
+  }
+  let obs = anchor + (truthBias||0);
+  if (typeof shockT==='number' && shockT>=0 && t===shockT) obs += (shockDelta||0);
+  if (truthNoise>0) obs += rng.normal(0, truthNoise);
+  return clamp(obs, 0, 1);
+}
+
+/*** Simulation core with backfire + new channel ***/
+function runSim(opts){
+  const { n, steps, inTrust, outTrust, bounded, noise, eWeight,
+          baseTruth, dualMode, truthA, truthB, envMixA, prefA, truthNoise, truthBias, shockT, shockDelta,
+          CA, EA, groups, initBeliefs,
+          bfTheta, bfProb, bfGain,
+          seed } = opts;
+
+  const rng = RNG(seed||0);
+  const beliefs = initBeliefs.slice();
+  const history = [beliefs.slice()];
+  let tt_converge = -1;
+  const tau = 0.05; // convergence stdev threshold
+
+  for (let t=0; t<steps; t++){
+    const next = beliefs.slice();
+    for (let i=0;i<n;i++){
+      const ca=clamp(CA[i],0,1), ea=clamp(EA[i],0,1);
+      // pick peers (EA breadth)
+      const m = Math.max(1, Math.round(1 + ea*(n-1)));
+      const set=new Set(); while(set.size<m){ const j=Math.floor(rng.rand()*n); if(j!==i) set.add(j); }
+      const peers = Array.from(set);
+
+      // social influence with bounded confidence and possible backfire
+      let numer=0, denom=0;
+      for (const j of peers){
+        let w = (groups[i]===groups[j] ? inTrust : outTrust);
+        const diff = Math.abs(beliefs[i]-beliefs[j]);
+        if (bounded>0 && diff>bounded) continue;
+        if (diff>bfTheta && rng.rand()<bfProb){
+          // repulsion
+          const repel = bfGain>0 ? -bfGain : -1;
+          numer += (w*repel)*beliefs[j]; denom += (w*Math.abs(repel));
+        } else {
+          numer += w*beliefs[j]; denom += w;
+        }
+      }
+      const social = denom>0 ? numer/denom : beliefs[i];
+
+      // external evidence draw (possibly noisy/biased/dual/shocked)
+      const ev = evidenceDraw(t, baseTruth, dualMode, truthA, truthB, envMixA, prefA[i], truthNoise, truthBias, shockT, shockDelta, rng);
+
+      // update
+      let updated = (1-ca)*beliefs[i] + ca*social;
+      updated = (1-eWeight)*updated + eWeight*ev;
+      if (noise>0) updated += rng.normal(0, noise);
+      next[i] = clamp(updated, 0, 1);
+    }
+    for (let i=0;i<n;i++) beliefs[i]=next[i];
+    history.push(beliefs.slice());
+
+    if (tt_converge<0 && stdev(beliefs)<=tau) tt_converge = t+1;
+  }
+  return {history, tt_converge};
+}
+
+/*** Metrics ***/
+function maeToAnchors(vec, dualMode, baseTruth, truthA, truthB){
+  if (dualMode==='on'){
+    const a = mean(vec.map(x=>Math.abs(x-truthA)));
+    const b = mean(vec.map(x=>Math.abs(x-truthB)));
+    return Math.min(a,b);
+  } else {
+    return mean(vec.map(x=>Math.abs(x-baseTruth)));
+  }
+}
+
+/*** Charting ***/
+function drawChart(canvas, history, indices){
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#1b2536'; ctx.lineWidth=1;
+  for(let y=0;y<=1;y+=0.25){
+    const yy=canvas.height-20 - y*(canvas.height-40);
+    ctx.beginPath(); ctx.moveTo(40,yy); ctx.lineTo(canvas.width-10,yy); ctx.stroke();
+    ctx.fillStyle='#778399'; ctx.fillText(y.toFixed(2),8,yy+3);
+  }
+  ctx.fillStyle='#99a7b6'; ctx.fillText('t',canvas.width-20,canvas.height-6); ctx.fillText('belief',6,14);
+  if (!history || !history.length) return;
+  const T=history.length;
+  const color=i=>`hsl(${(i*53)%360} 76% 64%)`;
+  indices.forEach(agentIdx=>{
+    ctx.beginPath(); ctx.strokeStyle=color(agentIdx); ctx.lineWidth=1.5;
+    for(let t=0;t<T;t++){
+      const b = history[t][agentIdx];
+      const x = 40 + (t/(T-1))*(canvas.width-60);
+      const y = canvas.height-20 - b*(canvas.height-40);
+      if (t===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  });
+}
+
+/*** CSV ***/
+function historyToCSV(H){
+  const T=H.length,N=H[0].length;
+  const head=['step',...Array.from({length:N},(_,i)=>`agent_${i}`)].join(',');
+  const lines=[head]; for (let t=0;t<T;t++) lines.push([t,...H[t].map(x=>x.toFixed(6))].join(','));
+  return lines.join('\n');
+}
+function rowsToCSV(rows){ return rows.map(r=>r.map(v=> (typeof v==='number'? v : String(v))).join(',')).join('\n') }
+
+/*** DOM ***/
+const el=id=>document.getElementById(id);
+const chart=el('chart'), legend=el('legend');
+const nAgents=el('nAgents'), steps=el('steps'), inTrust=el('inTrust'), outTrust=el('outTrust'), bounded=el('bounded'), noise=el('noise'), eWeight=el('eWeight'), truth=el('truth');
+const truthNoise=el('truthNoise'), truthBias=el('truthBias'), seed=el('seed'), dualMode=el('dualMode'), truthAB=el('truthAB'), envMixA=el('envMixA'), prefASpec=el('prefASpec'), shock=el('shock');
+const bfTheta=el('bfTheta'), bfProb=el('bfProb'), bfGain=el('bfGain');
+const ca=el('ca'), ea=el('ea'), groups=el('groups'), initBeliefs=el('initBeliefs');
+const displayMax=el('displayMax'), displayMode=el('displayMode');
+const btnRandom=el('btnRandom'), btnRun=el('btnRun'), btnCSV=el('btnCSV');
+const avgEl=el('avg'), stdEl=el('std'), polEl=el('pol'), maeEl=el('mae'), ttEl=el('tt'), dispCount=el('dispCount');
+
+const batchN=el('batchN'), batchSteps=el('batchSteps'), batchIn=el('batchIn'), batchOut=el('batchOut'), batchEps=el('batchEps'), batchNoise=el('batchNoise'), batchEW=el('batchEW'), batchTruth=el('batchTruth'), batchCA=el('batchCA'), batchEA=el('batchEA');
+const batchTruthNoise=el('batchTruthNoise'), batchTruthBias=el('batchTruthBias'), batchSeed=el('batchSeed');
+const batchDual=el('batchDual'), batchTruthAB=el('batchTruthAB'), batchEnvMix=el('batchEnvMix'), batchPrefA=el('batchPrefA'), batchShock=el('batchShock');
+const batchBfTheta=el('batchBfTheta'), batchBfProb=el('batchBfProb'), batchBfGain=el('batchBfGain');
+const batchShow=el('batchShow'), batchDisplay=el('batchDisplay');
+const btnBatchStart=el('btnBatchStart'), btnBatchStop=el('btnBatchStop'), btnBatchCSV=el('btnBatchCSV'), batchBar=el('batchBar'), batchStatus=el('batchStatus');
+const btnPresetFalsify1=el('btnPresetFalsify1'), btnPresetFalsify2=el('btnPresetFalsify2');
+const batchTable=document.querySelector('#batchTable tbody');
+
+let currentHistory=null, currentParams=null;
+
+/*** Helpers ***/
+function parseOrFill(len, field, gen, clamp01=true){
+  if(field.value.trim()){
+    const xs = field.value.split(/[\s,]+/).filter(Boolean).map(Number);
+    const out = xs.slice(0,len); while(out.length<len) out.push(out[out.length-1] ?? 0.5);
+    return clamp01 ? out.map(x=>clamp(x,0,1)) : out;
+  }
+  return Array.from({length:len},(_,i)=> gen(i));
+}
+function specToArray(specText, n, rng){ const spec=parseSpecToken(specText); return realizeArrayFromSpec(spec,n,rng); }
+function prefAArray(text, n, rng){ const tok=parseSpecToken(text); return realizeArrayFromSpec(tok,n,rng); }
+
+/*** Single run ***/
+function autofill(){
+  const n=Number(nAgents.value), half=Math.floor(n/2);
+  ca.value = Array.from({length:n},()=> (Math.random()*0.4+0.6).toFixed(2)).join(',');
+  ea.value = Array.from({length:n},()=> (Math.random()*0.6+0.2).toFixed(2)).join(',');
+  groups.value = Array.from({length:n},(_,i)=> i<half?0:1).join(',');
+  initBeliefs.value = Array.from({length:n},(_,i)=> (i<half? Math.random()*0.3+0.1 : Math.random()*0.3+0.6).toFixed(2)).join(',');
+}
+autofill();
+
+function runSingle(){
+  const n=clamp(Number(nAgents.value)|0,2,1000), S=clamp(Number(steps.value)|0,10,5000);
+  const baseTruth=Number(truth.value);
+  const tn=Number(truthNoise.value)||0, tb=Number(truthBias.value)||0, seedVal=Number(seed.value)||0;
+  const dual=dualMode.value;
+  const [tA,tB]=parseList(truthAB.value).concat([0.4,0.8]).slice(0,2);
+  const envA=Number(envMixA.value)||0.5;
+  const sh=shock.value.trim()? shock.value.split(',').map(Number) : [];
+  const shockT = sh.length? (sh[0]|0) : -1, shockDelta = sh.length>1? Number(sh[1]) : 0;
+
+  const CA=parseOrFill(n,ca,_=>Math.random()*0.4+0.6);
+  const EA=parseOrFill(n,ea,_=>Math.random()*0.6+0.2);
+  const G=parseOrFill(n,groups,i=> i<Math.floor(n/2)?0:1,false).map(x=>Math.round(x));
+  const B0=parseOrFill(n,initBeliefs,i=> (i<Math.floor(n/2)? Math.random()*0.3+0.1 : Math.random()*0.3+0.6));
+  const prefA = prefAArray(prefASpec.value||'0.5', n, RNG(seedVal||1));
+
+  const res = runSim({
+    n, steps:S,
+    inTrust:Number(inTrust.value), outTrust:Number(outTrust.value),
+    bounded:Number(bounded.value), noise:Number(noise.value), eWeight:Number(eWeight.value),
+    baseTruth, dualMode:dual, truthA:tA, truthB:tB, envMixA:envA, prefA, truthNoise:tn, truthBias:tb, shockT, shockDelta,
+    CA, EA, groups:G, initBeliefs:B0,
+    bfTheta:Number(bfTheta.value), bfProb:Number(bfProb.value), bfGain:Number(bfGain.value),
+    seed:seedVal
+  });
+
+  currentHistory = res.history; currentParams = {dual, baseTruth, tA, tB};
+  const last = currentHistory[currentHistory.length-1];
+  const delta = (Math.max(...last)-Math.min(...last));
+  const m = mean(last), s = stdev(last);
+  const mae = maeToAnchors(last, dual, baseTruth, tA, tB);
+
+  avgEl.textContent = m.toFixed(4);
+  stdEl.textContent = s.toFixed(4);
+  polEl.textContent = delta.toFixed(4);
+  maeEl.textContent = mae.toFixed(4);
+  ttEl.textContent = String(res.tt_converge);
+
+  const K=clamp(Number(displayMax.value)|0,5,1000);
+  const idxs = sampleIndices(n, K, displayMode.value);
+  dispCount.textContent = String(idxs.length);
+  drawChart(chart, currentHistory, idxs);
+  btnCSV.disabled=false;
+}
+btnRandom.addEventListener('click',autofill);
+btnRun.addEventListener('click',runSingle);
+btnCSV.addEventListener('click', ()=>{ if(!currentHistory) return; const csv=historyToCSV(currentHistory); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='belief_history.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); });
+
+/*** Batch ***/
+const batchCols=['idx','n','steps','in','out','epsilon','sigma','eW','truth','tNoise','tBias','dual','tA','tB','envA','prefA','shockT','shockΔ','bfθ','bfp','bfGain','CA','EA','seed','avg','std','delta','mae','tt_converge'];
+function appendRow(tbody,row){
+  const tr=document.createElement('tr');
+  row.forEach(v=>{ const td=document.createElement('td'); td.textContent=(typeof v==='number')? String(v) : v; tr.appendChild(td); });
+  tbody.appendChild(tr);
+}
+function cartesian(arrs){ return arrs.reduce((a,c)=> a.flatMap(x=> c.map(y=> x.concat([y]))), [[]]); }
+
+let batchAbort=false, batchRows=[];
+function startBatch(){
+  batchAbort=false; batchRows=[]; batchTable.innerHTML='';
+  btnBatchStart.disabled=true; btnBatchStop.disabled=false; btnBatchCSV.disabled=true; batchStatus.textContent='Preparing...'; batchBar.style.width='0%';
+
+  const Ns=parseList(batchN.value).length?parseList(batchN.value):[Number(nAgents.value)];
+  const Steps=parseList(batchSteps.value).length?parseList(batchSteps.value):[Number(steps.value)];
+  const In=parseList(batchIn.value), Out=parseList(batchOut.value), Eps=parseList(batchEps.value), Sig=parseList(batchNoise.value), EW=parseList(batchEW.value), Truth=parseList(batchTruth.value);
+  const CA_specs=parseTokens(batchCA.value).map(parseSpecToken), EA_specs=parseTokens(batchEA.value).map(parseSpecToken);
+
+  const tNoiseL=parseList(batchTruthNoise.value), tBiasL=parseList(batchTruthBias.value), seedL=parseList(batchSeed.value);
+  const dual = batchDual.value;
+  const [tA,tB]=parseList(batchTruthAB.value).concat([0.4,0.8]).slice(0,2);
+  const envA_L=parseList(batchEnvMix.value);
+  const prefA_specs=parseTokens(batchPrefA.value).map(parseSpecToken);
+  // shock list: accept "t,shift" pairs separated by ';'
+  const shockPairs = (batchShock.value||'').split(';').map(s=>s.trim()).filter(Boolean).map(s=>s.split(',').map(x=>Number(x.trim())));
+  const BfTheta=parseList(batchBfTheta.value), BfProb=parseList(batchBfProb.value), BfGain=parseList(batchBfGain.value);
+
+  const grid = cartesian([Ns,Steps,In,Out,Eps,Sig,EW,Truth,tNoiseL,tBiasL,[dual],[tA],[tB],envA_L,prefA_specs, shockPairs.length?shockPairs:[[ -1,0 ]], BfTheta,BfProb,BfGain, CA_specs,EA_specs, seedL]);
+  const total=grid.length; let done=0;
+  const showEach = batchShow.value==='yes'; const dispK = clamp(Number(batchDisplay.value)|0,5,1000);
+
+  (async () => {
+    for (let g=0; g<grid.length; g++){
+      if (batchAbort) break;
+      const [n,S,inT,outT,eps,sig,eW,tr, tNoise,tBias,dualModeVal,tA0,tB0,envA, prefA_spec, shockPair, bfT,bfP,bfG, caSpec,eaSpec, seedVal] = grid[g];
+
+      const rng = RNG((seedVal||0)+12345);
+      const CA = realizeArrayFromSpec(caSpec,n,rng);
+      const EA = realizeArrayFromSpec(eaSpec,n,rng);
+      const G = Array.from({length:n},(_,i)=> i<Math.floor(n/2)?0:1);
+      const B0= Array.from({length:n},(_,i)=> (i<Math.floor(n/2)? rng.rand()*0.3+0.1 : rng.rand()*0.3+0.6));
+      const prefA = realizeArrayFromSpec(prefA_spec,n,rng);
+
+      const {history, tt_converge} = runSim({
+        n, steps:S, inTrust:inT, outTrust:outT, bounded:eps, noise:sig, eWeight:eW,
+        baseTruth:tr, dualMode:dualModeVal, truthA:tA0, truthB:tB0, envMixA:envA, prefA,
+        truthNoise:tNoise, truthBias:tBias,
+        shockT: (Array.isArray(shockPair)? (shockPair[0]|0) : -1),
+        shockDelta: (Array.isArray(shockPair)&&shockPair.length>1? Number(shockPair[1]) : 0),
+        CA, EA, groups:G, initBeliefs:B0,
+        bfTheta:bfT, bfProb:bfP, bfGain:bfG,
+        seed: seedVal
+      });
+
+      const last=history[history.length-1];
+      const row = [
+        batchRows.length+1,n,S,inT,outT,eps,sig,eW,tr,tNoise,tBias,dualModeVal,tA0,tB0,envA,prefA_spec.label,
+        (Array.isArray(shockPair)? shockPair[0] : ''),(Array.isArray(shockPair)? (shockPair[1]??''): ''),
+        bfT,bfP,bfG, caSpec.label, eaSpec.label, seedVal,
+        mean(last), stdev(last), (Math.max(...last)-Math.min(...last)),
+        maeToAnchors(last, dualModeVal, tr, tA0, tB0),
+        tt_converge
+      ];
+      batchRows.push(row); appendRow(batchTable,row);
+
+      if (showEach){
+        const idxs=sampleIndices(n, Math.min(dispK,n), 'spread');
+        drawChart(chart, history, idxs);
+        await new Promise(r=>requestAnimationFrame(r));
+      }
+      done++; batchBar.style.width = Math.round(100*done/total)+'%'; batchStatus.textContent = `${done} / ${total}`;
+      await new Promise(r=>setTimeout(r));
+    }
+    btnBatchStart.disabled=false; btnBatchStop.disabled=true; btnBatchCSV.disabled=(batchRows.length===0);
+    batchStatus.textContent = batchAbort? `Stopped at ${batchRows.length} / ${total}` : `Done: ${batchRows.length} runs`;
+  })();
+}
+function stopBatch(){ batchAbort=true; }
+function downloadBatch(){ if(!batchRows.length) return; const csv = rowsToCSV([batchCols, ...batchRows]); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='batch_summary.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+
+btnBatchStart.addEventListener('click', startBatch);
+btnBatchStop.addEventListener('click', stopBatch);
+btnBatchCSV.addEventListener('click', downloadBatch);
+
+/*** Presets designed to try to falsify ***/
+btnPresetFalsify1.addEventListener('click', ()=>{
+  batchEps.value="0.02,0.05,0.08"; batchNoise.value="0.00,0.03"; batchOut.value="0.2,1.0";
+  batchTruthNoise.value="0.00,0.10"; batchTruthBias.value="0.0";
+  batchDual.value="off"; batchEnvMix.value="0.5"; batchPrefA.value="0.5";
+  batchBfTheta.value="0.25,0.35"; batchBfProb.value="0.00,0.25"; batchBfGain.value="1.0,2.0";
+  batchShock.value="-1,0"; batchSeed.value="0,1";
+});
+btnPresetFalsify2.addEventListener('click', ()=>{
+  batchEps.value="0.02,0.05"; batchNoise.value="0.00,0.03"; batchOut.value="0.2,0.6,1.0";
+  batchDual.value="on"; batchTruthAB.value="0.35,0.85"; batchEnvMix.value="0.3,0.7"; batchPrefA.value="U(0.3,0.7)";
+  batchTruthNoise.value="0.05,0.10"; batchTruthBias.value="0.0,0.1";
+  batchBfTheta.value="0.25"; batchBfProb.value="0.00,0.25"; batchBfGain.value="1.0,2.0";
+  batchShock.value="180,-0.2 ; -1,0"; batchSeed.value="0,1";
+});
+</script>
+</body>
+</html>
