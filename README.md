@@ -1,7 +1,7 @@
 # Cognitive Agency & Epistemic Autonomy Simulation  
 
 A browser-based agent simulation exploring the dynamics of **Cognitive Agency (CA)** and **Epistemic Autonomy (EA)** across populations of interacting agents.  
-This simulation is designed as part of ongoing research in *The Geometry of the Good* project and builds upon the conceptual framework developed in **Preston’s thesis on belief dynamics, agency, and autonomy**.  
+This simulation is designed as part of ongoing research in *The Geometry of the Good* project and builds upon the conceptual framework developed in **Preston Justice’s thesis on belief dynamics, agency, and autonomy**.  
 
 ---
 
