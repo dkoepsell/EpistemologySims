@@ -44,6 +44,23 @@ Preston’s work directly inspired the design of the CA/EA sweeps, metrics, and 
 │   └── analysis.ipynb   # Example Jupyter Notebook for CSV data
 └── README.md
 
+FALSIFIABILITY: running the Falsifiable version:
+How to use (quick)
+
+Single run: try toggling Dual anchors = on, set truthA=0.35, truthB=0.85, envMixA=0.7, truthNoise=0.1, and play with Backfire (θ=0.25, p=0.25, gain=2). Watch for cases where more openness (higher EA/out-trust) doesn’t reduce Δ — that’s a candidate falsifier.
+
+Batch: click Preset: Backfire vs Openness or Preset: Dual Truths + Shock, then Start Batch, and export CSV. Inspect Δ, mae, and tt_converge.
+
+Why this makes falsification real
+
+If you find regimes where low EA outperforms high EA (lower mae, faster tt_converge) because backfire/dual-truths make extra exposure harmful, that pushes back on the “autonomy first” reading and narrows Preston’s thesis (e.g., EA benefits are conditional on low backfire or bounded pluralism).
+
+Conversely, if EA still reduces both Δ and MAE across these hostile worlds, the thesis survives a much tougher test.
+
+
+
+
+
 If you use this simulation in academic work, please cite:
 
 Justice, Preston.
